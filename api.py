@@ -17,7 +17,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-MODEL_PATH = "/home/v0r73x/Downloads/laphong4.pkl"
+MODEL_PATH = "laphong4.pkl"
 EMOTIONS = ['Happy', 'Sad', 'Angry', 'Neutral', 'Surprised', 'Fear', 'Disgust']
 
 try:
