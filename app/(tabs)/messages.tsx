@@ -741,8 +741,7 @@
 
 
 
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -752,6 +751,10 @@ import {
   TextInput,
   Alert,
   Platform,
+  KeyboardAvoidingView,
+  ScrollView,
+  Keyboard,
+  Dimensions,
 } from 'react-native';
 import { MessageSquare, Scan, Lock } from 'lucide-react-native';
 import MessageItem from '@/components/messages/MessageItem';
@@ -774,6 +777,9 @@ export default function MessagesScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [senderInput, setSenderInput] = useState('');
   const [messageInput, setMessageInput] = useState('');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const messageInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     const checkPermissionsAndStartMonitoring = async () => {
@@ -813,6 +819,28 @@ export default function MessagesScreen() {
     }
   }, [lastDetection]);
 
+  useEffect(() => {
+    const keyboardDidShow = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+      // Scroll to the message input when keyboard appears
+      setTimeout(() => {
+        messageInputRef.current?.measure((x, y, width, height, pageX, pageY) => {
+          scrollViewRef.current?.scrollTo({ y: pageY + height, animated: true });
+        });
+      }, 100);
+    });
+
+    const keyboardDidHide = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    });
+
+    return () => {
+      keyboardDidShow.remove();
+      keyboardDidHide.remove();
+    };
+  }, []);
+
   const handleScanMessage = async () => {
     if (!senderInput || !messageInput) {
       Alert.alert('Error', 'Please enter both sender and message content.');
@@ -822,6 +850,7 @@ export default function MessagesScreen() {
     await scanMessage(senderInput, messageInput);
     setSenderInput('');
     setMessageInput('');
+    Keyboard.dismiss();
   };
 
   const handleRequestPermission = async () => {
@@ -838,7 +867,11 @@ export default function MessagesScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Message Scanner</Text>
       </View>
@@ -867,27 +900,35 @@ export default function MessagesScreen() {
         </View>
       )}
 
-      {(Platform.OS !== 'android' || (Platform.OS === 'android' && permissionStatus.sms !== 'granted')) && (
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Sender (e.g., number or name)"
-            value={senderInput}
-            onChangeText={setSenderInput}
-          />
-          <TextInput
-            style={[styles.input, styles.messageInput]}
-            placeholder="Paste message content here"
-            value={messageInput}
-            onChangeText={setMessageInput}
-            multiline
-          />
-          <TouchableOpacity style={styles.scanButton} onPress={handleScanMessage}>
-            <Scan size={20} color="#FFFFFF" />
-            <Text style={styles.scanButtonText}>Scan Message</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {(Platform.OS !== 'android' || (Platform.OS === 'android' && permissionStatus.sms !== 'granted')) && (
+          <View style={[styles.inputContainer, { paddingBottom: keyboardHeight }]}>
+            <TextInput
+              style={styles.input}
+              placeholder="Sender (e.g., number or name)"
+              value={senderInput}
+              onChangeText={setSenderInput}
+            />
+            <TextInput
+              ref={messageInputRef}
+              style={[styles.input, styles.messageInput]}
+              placeholder="Paste message content here"
+              value={messageInput}
+              onChangeText={setMessageInput}
+              multiline
+            />
+            <TouchableOpacity style={styles.scanButton} onPress={handleScanMessage}>
+              <Scan size={20} color="#FFFFFF" />
+              <Text style={styles.scanButtonText}>Scan Message</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
 
       {messages.length === 0 ? (
         <View style={styles.emptyState}>
@@ -905,9 +946,10 @@ export default function MessagesScreen() {
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <MessageItem message={item} />}
           contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
         />
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -969,6 +1011,12 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginLeft: 8,
   },
+  scrollContainer: {
+    flexGrow: 0,
+  },
+  scrollContent: {
+    paddingBottom: 20,
+  },
   inputContainer: {
     padding: 20,
     backgroundColor: '#FFFFFF',
@@ -1022,5 +1070,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 20,
+    paddingBottom: 20,
   },
 });

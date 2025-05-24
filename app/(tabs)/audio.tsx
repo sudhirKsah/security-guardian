@@ -403,7 +403,6 @@
 
 
 
-
 import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
@@ -414,6 +413,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import * as FileSystem from 'expo-file-system';
 import { Mic, Upload, FilePlus } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { Audio } from 'expo-av';
@@ -479,19 +479,31 @@ export default function AudioScreen() {
     try {
       console.log('Starting file picker...');
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['audio/*'], // Accept all audio types
-        copyToCacheDirectory: true, // Important: copy to cache for access
+        type: ['audio/wav', 'audio/mp3', 'audio/mpeg', 'audio/m4a', 'audio/aac', 'audio/ogg'], 
+        copyToCacheDirectory: true,
+        multiple: false,
       });
 
       console.log('Document picker result:', result);
 
-      if (result.canceled || !result.assets || result.assets.length === 0) {
-        console.log('File selection canceled or no assets');
+      if (result.canceled) {
+        console.log('File selection canceled');
+        return;
+      }
+
+      if (!result.assets || result.assets.length === 0) {
+        console.log('No assets in result');
+        Alert.alert('Error', 'No file was selected. Please try again.');
         return;
       }
 
       const asset = result.assets[0];
-      console.log('Selected file:', asset);
+      console.log('Selected file:', {
+        name: asset.name,
+        uri: asset.uri,
+        size: asset.size,
+        mimeType: asset.mimeType
+      });
 
       // Validate file size (max 10MB)
       if (asset.size && asset.size > 10 * 1024 * 1024) {
@@ -500,13 +512,19 @@ export default function AudioScreen() {
       }
 
       // Validate file exists and is accessible
-      const fileInfo = await FileSystem.getInfoAsync(asset.uri);
-      if (!fileInfo.exists) {
-        Alert.alert('Error', 'Selected file is not accessible. Please try again.');
+      let fileInfo;
+      try {
+        fileInfo = await FileSystem.getInfoAsync(asset.uri);
+        console.log('File info:', fileInfo);
+        
+        if (!fileInfo.exists) {
+          throw new Error('File does not exist');
+        }
+      } catch (fileError) {
+        console.error('File access error:', fileError);
+        Alert.alert('Error', 'Selected file is not accessible. Please try selecting a different file.');
         return;
       }
-
-      console.log('File info:', fileInfo);
 
       // Get duration using Audio.Sound
       let durationStr = '00:00';
