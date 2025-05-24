@@ -103,7 +103,7 @@ interface EmotionAnalysisResult {
     details?: string;
 }
 
-interface PhishingAnalysisResult {
+export interface PhishingAnalysisResult {
     isMalicious: boolean;
     confidence: number;
     type?: string;
