@@ -404,9 +404,6 @@
 
 
 
-
-
-
 import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
@@ -417,12 +414,12 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { Mic, Upload, FilePlus, AlertTriangle } from 'lucide-react-native';
+import { Mic, Upload, FilePlus } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
+import { Audio } from 'expo-av';
 import AudioRecordItem from '@/components/audio/AudioRecordItem';
 import EmotionResultModal from '@/components/audio/EmotionResultModal';
 import { useAudioRecorder } from '@/hooks/useAudioRecorder';
-import { usePermissions } from '@/hooks/usePermissions';
 import { analyzeAudio } from '@/utils/api';
 
 interface AudioRecord {
@@ -435,8 +432,14 @@ interface AudioRecord {
 }
 
 export default function AudioScreen() {
-  const { permissionStatus, requestMicrophonePermission, requestStoragePermission } = usePermissions();
+  const [audioRecords, setAudioRecords] = useState<AudioRecord[]>([]);
+  const [selectedAudio, setSelectedAudio] = useState<AudioRecord | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [micPermission, setMicPermission] = useState<string | null>(null);
+
   const handleRecordingComplete = async (uri: string) => {
+    console.log('Recording completed:', uri);
     const newRecord: AudioRecord = {
       id: Date.now().toString(),
       name: `Recording ${audioRecords.length + 1}`,
@@ -445,61 +448,118 @@ export default function AudioScreen() {
       analyzed: false,
       emotion: null,
     };
-    setAudioRecords([newRecord, ...audioRecords]);
+    setAudioRecords(prev => [newRecord, ...prev]);
     analyzeRecording(uri, newRecord);
   };
 
   const { isRecording, startRecording, stopRecording, duration, error } = useAudioRecorder({
     onRecordingComplete: handleRecordingComplete,
   });
-  const [audioRecords, setAudioRecords] = useState<AudioRecord[]>([]);
-  const [selectedAudio, setSelectedAudio] = useState<AudioRecord | null>(null);
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   useEffect(() => {
     if (error) {
-      Alert.alert('Error', error);
+      Alert.alert('Recording Error', error);
     }
   }, [error]);
 
-  const handleUpload = async () => {
-    if (permissionStatus.storage !== 'granted') {
-      await requestStoragePermission();
-      if (permissionStatus.storage !== 'granted') {
-        Alert.alert('Permission Denied', 'Storage permission is required to upload audio files.');
-        return;
+  useEffect(() => {
+    // Request microphone permission on mount
+    (async () => {
+      try {
+        const { status } = await Audio.requestPermissionsAsync();
+        setMicPermission(status);
+        console.log('Microphone permission:', status);
+      } catch (err) {
+        console.error('Permission request failed:', err);
       }
-    }
+    })();
+  }, []);
 
+  const handleUpload = async () => {
     try {
+      console.log('Starting file picker...');
       const result = await DocumentPicker.getDocumentAsync({
-        type: 'audio/*',
+        type: ['audio/*'], // Accept all audio types
+        copyToCacheDirectory: true, // Important: copy to cache for access
       });
 
-      if (result.canceled) return;
+      console.log('Document picker result:', result);
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        console.log('File selection canceled or no assets');
+        return;
+      }
 
       const asset = result.assets[0];
+      console.log('Selected file:', asset);
+
+      // Validate file size (max 10MB)
+      if (asset.size && asset.size > 10 * 1024 * 1024) {
+        Alert.alert('Error', 'File size exceeds 10MB limit.');
+        return;
+      }
+
+      // Validate file exists and is accessible
+      const fileInfo = await FileSystem.getInfoAsync(asset.uri);
+      if (!fileInfo.exists) {
+        Alert.alert('Error', 'Selected file is not accessible. Please try again.');
+        return;
+      }
+
+      console.log('File info:', fileInfo);
+
+      // Get duration using Audio.Sound
+      let durationStr = '00:00';
+      try {
+        const sound = new Audio.Sound();
+        await sound.loadAsync({ uri: asset.uri });
+        const status = await sound.getStatusAsync();
+        
+        if ('isLoaded' in status && status.isLoaded && status.durationMillis) {
+          const durationMillis = status.durationMillis;
+          const minutes = Math.floor(durationMillis / 60000);
+          const seconds = Math.floor((durationMillis % 60000) / 1000);
+          durationStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        await sound.unloadAsync();
+      } catch (audioError) {
+        console.warn('Could not get audio duration:', audioError);
+        // Continue without duration - not critical
+      }
+
       const newRecord: AudioRecord = {
         id: Date.now().toString(),
-        name: asset.name,
-        duration: '00:00', // Duration not available for uploaded files
+        name: asset.name || 'Uploaded Audio',
+        duration: durationStr,
         date: new Date().toLocaleDateString(),
         analyzed: false,
         emotion: null,
       };
-      setAudioRecords([newRecord, ...audioRecords]);
+      
+      console.log('Adding new record:', newRecord);
+      setAudioRecords(prev => [newRecord, ...prev]);
+      
+      // Start analysis
       analyzeRecording(asset.uri, newRecord);
+      
     } catch (err) {
-      Alert.alert('Error', 'Failed to upload audio file');
       console.error('Upload error:', err);
+      Alert.alert(
+        'Upload Error', 
+        'Failed to upload audio file. Please ensure the file is a valid audio format and try again.\n\nError: ' + (err?.message || 'Unknown error')
+      );
     }
   };
 
   const analyzeRecording = async (uri: string, record: AudioRecord) => {
+    console.log('Starting analysis for:', uri);
     setIsAnalyzing(true);
+    
     try {
       const analysis = await analyzeAudio(uri);
+      console.log('Analysis completed:', analysis);
+      
       setAudioRecords((prev) =>
         prev.map((item) =>
           item.id === record.id
@@ -511,36 +571,67 @@ export default function AudioScreen() {
             : item
         )
       );
-    } catch (err) {
-      Alert.alert('Error', 'Failed to analyze audio');
+    } catch (err: any) {
       console.error('Analysis error:', err);
+      Alert.alert(
+        'Analysis Error', 
+        `Failed to analyze audio: ${err.message || 'Unknown error'}\n\nPlease check your internet connection and try again.`
+      );
+      
+      // Remove the failed record or mark it as failed
+      setAudioRecords((prev) =>
+        prev.map((item) =>
+          item.id === record.id
+            ? {
+                ...item,
+                analyzed: true,
+                emotion: 'Analysis Failed',
+              }
+            : item
+        )
+      );
     } finally {
       setIsAnalyzing(false);
     }
   };
 
   const handleSelectAudio = (audio: AudioRecord) => {
-    if (audio.analyzed) {
+    if (audio.analyzed && audio.emotion && audio.emotion !== 'Analysis Failed') {
       setSelectedAudio(audio);
       setIsModalVisible(true);
+    } else if (audio.emotion === 'Analysis Failed') {
+      Alert.alert('Analysis Failed', 'This audio analysis failed. Please try uploading again.');
     } else {
       Alert.alert('Not Analyzed', 'This audio has not been analyzed yet.');
     }
   };
 
   const handleRecord = async () => {
-    if (permissionStatus.microphone !== 'granted') {
-      await requestMicrophonePermission();
-      if (permissionStatus.microphone !== 'granted') {
-        Alert.alert('Permission Denied', 'Microphone permission is required to record audio.');
+    if (micPermission !== 'granted') {
+      try {
+        const { status } = await Audio.requestPermissionsAsync();
+        setMicPermission(status);
+        console.log('Requested microphone permission:', status);
+        if (status !== 'granted') {
+          Alert.alert('Permission Denied', 'Microphone permission is required to record audio.');
+          return;
+        }
+      } catch (err) {
+        console.error('Permission request failed:', err);
+        Alert.alert('Permission Error', 'Failed to request microphone permission.');
         return;
       }
     }
 
-    if (isRecording) {
-      stopRecording();
-    } else {
-      startRecording();
+    try {
+      if (isRecording) {
+        await stopRecording();
+      } else {
+        await startRecording();
+      }
+    } catch (err) {
+      console.error('Recording operation failed:', err);
+      Alert.alert('Recording Error', 'Failed to start/stop recording. Please try again.');
     }
   };
 
@@ -548,9 +639,15 @@ export default function AudioScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Voice Analysis</Text>
-        <TouchableOpacity style={styles.uploadButton} onPress={handleUpload}>
-          <Upload size={20} color="#007AFF" />
-          <Text style={styles.uploadButtonText}>Upload Audio</Text>
+        <TouchableOpacity 
+          style={styles.uploadButton} 
+          onPress={handleUpload}
+          disabled={isAnalyzing}
+        >
+          <Upload size={20} color={isAnalyzing ? "#8E8E93" : "#007AFF"} />
+          <Text style={[styles.uploadButtonText, isAnalyzing && styles.disabledText]}>
+            Upload Audio
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -558,6 +655,7 @@ export default function AudioScreen() {
         <TouchableOpacity
           style={[styles.recordButton, isRecording && styles.stopButton]}
           onPress={handleRecord}
+          disabled={isAnalyzing}
         >
           {isRecording ? (
             <View style={styles.stopIcon}>
@@ -643,6 +741,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#007AFF',
     marginLeft: 6,
+  },
+  disabledText: {
+    color: '#8E8E93',
   },
   recordSection: {
     padding: 20,

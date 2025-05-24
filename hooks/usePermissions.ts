@@ -219,278 +219,424 @@
 
 
 
+// import { useState, useEffect, useCallback } from 'react';
+// import { Platform } from 'react-native';
+// import * as Clipboard from 'expo-clipboard';
+// import * as SMS from 'expo-sms';
+// import * as FileSystem from 'expo-file-system';
+// import { Audio } from 'expo-av';
+// import { checkIfHasSMSPermission, requestReadSMSPermission } from '@maniac-tech/react-native-expo-read-sms';
+
+// type PermissionStatus = 'granted' | 'denied' | 'never_ask_again' | 'unavailable' | 'undetermined';
+
+// interface PermissionStatuses {
+//   clipboard: PermissionStatus;
+//   sms: PermissionStatus;
+//   storage: PermissionStatus;
+//   microphone: PermissionStatus;
+// }
+
+// export function usePermissions() {
+//   const [permissionStatus, setPermissionStatus] = useState<PermissionStatuses>({
+//     clipboard: 'undetermined',
+//     sms: 'undetermined',
+//     storage: 'undetermined',
+//     microphone: 'undetermined',
+//   });
+
+//   const checkClipboardPermission = async () => {
+//     if (Platform.OS === 'web') {
+//       try {
+//         const result = await navigator.permissions.query({ name: 'clipboard-read' as PermissionName });
+//         return result.state as PermissionStatus;
+//       } catch {
+//         return 'unavailable';
+//       }
+//     }
+//     return 'granted';
+//   };
+
+//   const checkSMSPermission = async () => {
+//     if (Platform.OS === 'web' || Platform.OS === 'ios') return 'unavailable';
+
+//     try {
+//       const { hasReceiveSmsPermission, hasReadSmsPermission } = await checkIfHasSMSPermission();
+//       if (hasReceiveSmsPermission && hasReadSmsPermission) {
+//         return 'granted';
+//       }
+//       return 'denied';
+//     } catch (error) {
+//       console.error('Error checking SMS permissions:', error);
+//       return 'unavailable';
+//     }
+//   };
+
+//   const checkStoragePermission = async () => {
+//     if (Platform.OS === 'web') {
+//       try {
+//         const result = await navigator.permissions.query({ name: 'persistent-storage' as PermissionName });
+//         return result.state as PermissionStatus;
+//       } catch {
+//         return 'unavailable';
+//       }
+//     }
+
+//     try {
+//       const { granted } = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+//       return granted ? 'granted' : 'denied';
+//     } catch {
+//       return 'unavailable';
+//     }
+//   };
+
+//   const checkMicrophonePermission = async () => {
+//     if (Platform.OS === 'web') {
+//       try {
+//         const result = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+//         return result.state as PermissionStatus;
+//       } catch {
+//         return 'unavailable';
+//       }
+//     }
+
+//     try {
+//       const { status } = await Audio.getPermissionsAsync();
+//       return status as PermissionStatus;
+//     } catch {
+//       return 'unavailable';
+//     }
+//   };
+
+//   const checkAllPermissions = useCallback(async () => {
+//     const [clipboard, sms, storage, microphone] = await Promise.all([
+//       checkClipboardPermission(),
+//       checkSMSPermission(),
+//       checkStoragePermission(),
+//       checkMicrophonePermission(),
+//     ]);
+
+//     setPermissionStatus({
+//       clipboard,
+//       sms,
+//       storage,
+//       microphone,
+//     });
+//   }, []);
+
+//   const requestClipboardPermission = async () => {
+//     if (Platform.OS === 'web') {
+//       try {
+//         const result = await navigator.permissions.query({ name: 'clipboard-read' as PermissionName });
+//         if (result.state === 'granted') {
+//           setPermissionStatus(prev => ({ ...prev, clipboard: 'granted' }));
+//         } else {
+//           setPermissionStatus(prev => ({ ...prev, clipboard: 'denied' }));
+//         }
+//       } catch {
+//         setPermissionStatus(prev => ({ ...prev, clipboard: 'unavailable' }));
+//       }
+//     } else {
+//       setPermissionStatus(prev => ({ ...prev, clipboard: 'granted' }));
+//     }
+//   };
+
+//   const requestSMSPermission = async () => {
+//     if (Platform.OS === 'web' || Platform.OS === 'ios') {
+//       setPermissionStatus(prev => ({ ...prev, sms: 'unavailable' }));
+//       return false;
+//     }
+
+//     try {
+//       const granted = await requestReadSMSPermission();
+//       setPermissionStatus(prev => ({ ...prev, sms: granted ? 'granted' : 'denied' }));
+//       return granted;
+//     } catch (error) {
+//       console.error('Error requesting SMS permissions:', error);
+//       setPermissionStatus(prev => ({ ...prev, sms: 'unavailable' }));
+//       return false;
+//     }
+//   };
+
+//   const requestStoragePermission = async () => {
+//     if (Platform.OS === 'web') {
+//       try {
+//         const result = await navigator.permissions.query({ name: 'persistent-storage' as PermissionName });
+//         setPermissionStatus(prev => ({ ...prev, storage: result.state as PermissionStatus }));
+//       } catch {
+//         setPermissionStatus(prev => ({ ...prev, storage: 'unavailable' }));
+//       }
+//     } else {
+//       try {
+//         const { granted } = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+//         setPermissionStatus(prev => ({ ...prev, storage: granted ? 'granted' : 'denied' }));
+//       } catch {
+//         setPermissionStatus(prev => ({ ...prev, storage: 'unavailable' }));
+//       }
+//     }
+//   };
+
+//   const requestMicrophonePermission = async () => {
+//     if (Platform.OS === 'web') {
+//       try {
+//         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+//         stream.getTracks().forEach(track => track.stop());
+//         setPermissionStatus(prev => ({ ...prev, microphone: 'granted' }));
+//       } catch {
+//         setPermissionStatus(prev => ({ ...prev, microphone: 'denied' }));
+//       }
+//     } else {
+//       try {
+//         const { status } = await Audio.requestPermissionsAsync();
+//         setPermissionStatus(prev => ({ ...prev, microphone: status as PermissionStatus }));
+//       } catch {
+//         setPermissionStatus(prev => ({ ...prev, microphone: 'unavailable' }));
+//       }
+//     }
+//   };
+
+//   const requestAllPermissions = useCallback(async () => {
+//     await Promise.all([
+//       requestClipboardPermission(),
+//       requestSMSPermission(),
+//       requestStoragePermission(),
+//       requestMicrophonePermission(),
+//     ]);
+//   }, []);
+
+//   useEffect(() => {
+//     checkAllPermissions();
+//   }, [checkAllPermissions]);
+
+//   return {
+//     permissionStatus,
+//     requestClipboardPermission,
+//     requestSMSPermission,
+//     requestStoragePermission,
+//     requestMicrophonePermission,
+//     requestAllPermissions,
+//   };
+// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 import { useState, useEffect, useCallback } from 'react';
-import { Platform, Alert, PermissionsAndroid, Linking } from 'react-native';
-import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
+import * as FileSystem from 'expo-file-system';
+import { Audio } from 'expo-av';
+import { checkIfHasSMSPermission, requestReadSMSPermission } from '@maniac-tech/react-native-expo-read-sms';
 
 type PermissionStatus = 'granted' | 'denied' | 'never_ask_again' | 'unavailable' | 'undetermined';
 
 interface PermissionStatuses {
+  clipboard: PermissionStatus;
   sms: PermissionStatus;
-  notifications: PermissionStatus;
   storage: PermissionStatus;
-  camera: PermissionStatus;
   microphone: PermissionStatus;
+  hasReadSmsPermission: boolean;
+  hasReceiveSmsPermission: boolean;
 }
 
 export function usePermissions() {
   const [permissionStatus, setPermissionStatus] = useState<PermissionStatuses>({
+    clipboard: 'undetermined',
     sms: 'undetermined',
-    notifications: 'undetermined',
     storage: 'undetermined',
-    camera: 'undetermined',
     microphone: 'undetermined',
+    hasReadSmsPermission: false,
+    hasReceiveSmsPermission: false,
   });
 
-  // Check all permissions on mount
-  useEffect(() => {
-    checkAllPermissions();
-  }, []);
+  const checkClipboardPermission = async (): Promise<PermissionStatus> => {
+    if (Platform.OS === 'web') {
+      try {
+        const result = await (navigator as any).permissions.query({ name: 'clipboard-read' });
+        return result.state as PermissionStatus;
+      } catch {
+        return 'unavailable';
+      }
+    }
+    return 'granted'; // mobile platforms assume access
+  };
+
+  const checkSMSPermission = async (): Promise<PermissionStatus> => {
+    if (Platform.OS === 'web' || Platform.OS === 'ios') return 'unavailable';
+
+    try {
+      const { hasReceiveSmsPermission, hasReadSmsPermission } = await checkIfHasSMSPermission();
+      setPermissionStatus(prev => ({
+        ...prev,
+        hasReadSmsPermission,
+        hasReceiveSmsPermission,
+      }));
+      return (hasReceiveSmsPermission && hasReadSmsPermission) ? 'granted' : 'denied';
+    } catch (error) {
+      console.error('Error checking SMS permissions:', error);
+      return 'unavailable';
+    }
+  };
+
+  const checkStoragePermission = async (): Promise<PermissionStatus> => {
+    if (Platform.OS === 'web') {
+      try {
+        const result = await (navigator as any).permissions.query({ name: 'persistent-storage' });
+        return result.state as PermissionStatus;
+      } catch {
+        return 'unavailable';
+      }
+    }
+
+    try {
+      const result = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+      return result.granted ? 'granted' : 'denied';
+    } catch {
+      return 'unavailable';
+    }
+  };
+
+  const checkMicrophonePermission = async (): Promise<PermissionStatus> => {
+    if (Platform.OS === 'web') {
+      try {
+        const result = await (navigator as any).permissions.query({ name: 'microphone' });
+        return result.state as PermissionStatus;
+      } catch {
+        return 'unavailable';
+      }
+    }
+
+    try {
+      const { status } = await Audio.getPermissionsAsync();
+      return status as PermissionStatus;
+    } catch {
+      return 'unavailable';
+    }
+  };
 
   const checkAllPermissions = useCallback(async () => {
-    if (Platform.OS === 'android') {
-      try {
-        // Check SMS permissions
-        const hasReadSMS = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_SMS);
-        const hasReceiveSMS = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.RECEIVE_SMS);
-        const smsStatus = (hasReadSMS && hasReceiveSMS) ? 'granted' : 'undetermined';
+    const [clipboard, sms, storage, microphone] = await Promise.all([
+      checkClipboardPermission(),
+      checkSMSPermission(),
+      checkStoragePermission(),
+      checkMicrophonePermission(),
+    ]);
 
-        // Check storage permission
-        const hasStorage = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE);
-        const storageStatus = hasStorage ? 'granted' : 'undetermined';
-
-        // Check camera permission
-        const hasCamera = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.CAMERA);
-        const cameraStatus = hasCamera ? 'granted' : 'undetermined';
-
-        // Check microphone permission
-        const hasMicrophone = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
-        const microphoneStatus = hasMicrophone ? 'granted' : 'undetermined';
-
-        // Check notification permission
-        const notificationSettings = await Notifications.getPermissionsAsync();
-        const notificationStatus = notificationSettings.granted ? 'granted' : 'undetermined';
-
-        setPermissionStatus({
-          sms: smsStatus,
-          notifications: notificationStatus,
-          storage: storageStatus,
-          camera: cameraStatus,
-          microphone: microphoneStatus,
-        });
-      } catch (error) {
-        console.error('Error checking permissions:', error);
-      }
-    } else if (Platform.OS === 'ios') {
-      // iOS doesn't allow SMS reading
-      const notificationSettings = await Notifications.getPermissionsAsync();
-      const notificationStatus = notificationSettings.granted ? 'granted' : 'undetermined';
-
-      setPermissionStatus({
-        sms: 'unavailable',
-        notifications: notificationStatus,
-        storage: 'unavailable',
-        camera: 'undetermined',
-        microphone: 'undetermined',
-      });
-    }
+    setPermissionStatus(prev => ({
+      ...prev,
+      clipboard,
+      sms,
+      storage,
+      microphone,
+    }));
   }, []);
 
-  const requestSMSPermission = useCallback(async (): Promise<boolean> => {
-    if (Platform.OS !== 'android') {
-      Alert.alert(
-        'Not Available on iOS',
-        'SMS reading is not available on iOS due to platform restrictions. This feature is only available on Android devices.',
-        [{ text: 'OK' }]
-      );
+  const requestClipboardPermission = async () => {
+    if (Platform.OS === 'web') {
+      try {
+        const result = await (navigator as any).permissions.query({ name: 'clipboard-read' });
+        setPermissionStatus(prev => ({ ...prev, clipboard: result.state as PermissionStatus }));
+      } catch {
+        setPermissionStatus(prev => ({ ...prev, clipboard: 'unavailable' }));
+      }
+    } else {
+      setPermissionStatus(prev => ({ ...prev, clipboard: 'granted' }));
+    }
+  };
+
+  const requestSMSPermission = async (): Promise<boolean> => {
+    if (Platform.OS === 'web' || Platform.OS === 'ios') {
       setPermissionStatus(prev => ({ ...prev, sms: 'unavailable' }));
       return false;
     }
 
     try {
-      const granted = await PermissionsAndroid.requestMultiple([
-        PermissionsAndroid.PERMISSIONS.READ_SMS,
-        PermissionsAndroid.PERMISSIONS.RECEIVE_SMS,
-      ]);
-
-      const hasReadSMS = granted[PermissionsAndroid.PERMISSIONS.READ_SMS] === PermissionsAndroid.RESULTS.GRANTED;
-      const hasReceiveSMS = granted[PermissionsAndroid.PERMISSIONS.RECEIVE_SMS] === PermissionsAndroid.RESULTS.GRANTED;
-      
-      if (hasReadSMS && hasReceiveSMS) {
-        setPermissionStatus(prev => ({ ...prev, sms: 'granted' }));
-        return true;
-      } else if (
-        granted[PermissionsAndroid.PERMISSIONS.READ_SMS] === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN ||
-        granted[PermissionsAndroid.PERMISSIONS.RECEIVE_SMS] === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN
-      ) {
-        setPermissionStatus(prev => ({ ...prev, sms: 'never_ask_again' }));
-        Alert.alert(
-          'Permission Required',
-          'SMS permissions are required for message monitoring. Please enable them in your device settings.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Open Settings', onPress: () => Linking.openSettings() },
-          ]
-        );
-        return false;
-      } else {
-        setPermissionStatus(prev => ({ ...prev, sms: 'denied' }));
-        return false;
-      }
-    } catch (error) {
-      console.error('Error requesting SMS permission:', error);
-      setPermissionStatus(prev => ({ ...prev, sms: 'denied' }));
-      return false;
-    }
-  }, []);
-
-  const requestNotificationPermission = useCallback(async (): Promise<boolean> => {
-    try {
-      const { status } = await Notifications.requestPermissionsAsync();
-      const granted = status === 'granted';
-      
-      setPermissionStatus(prev => ({ 
-        ...prev, 
-        notifications: granted ? 'granted' : 'denied' 
+      const granted = await requestReadSMSPermission();
+      const { hasReceiveSmsPermission, hasReadSmsPermission } = await checkIfHasSMSPermission();
+      setPermissionStatus(prev => ({
+        ...prev,
+        sms: granted ? 'granted' : 'denied',
+        hasReadSmsPermission,
+        hasReceiveSmsPermission,
       }));
-      
-      if (!granted) {
-        Alert.alert(
-          'Notifications Disabled',
-          'Enable notifications to receive alerts about malicious content.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Open Settings', onPress: () => Linking.openSettings() },
-          ]
-        );
-      }
-      
       return granted;
     } catch (error) {
-      console.error('Error requesting notification permission:', error);
+      console.error('Error requesting SMS permissions:', error);
+      setPermissionStatus(prev => ({ ...prev, sms: 'unavailable' }));
       return false;
     }
-  }, []);
+  };
 
-  const requestStoragePermission = useCallback(async (): Promise<boolean> => {
-    if (Platform.OS !== 'android') {
-      setPermissionStatus(prev => ({ ...prev, storage: 'unavailable' }));
-      return false;
-    }
-
-    try {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-        {
-          title: 'Storage Permission',
-          message: 'This app needs access to storage to save analysis reports.',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'OK',
-        }
-      );
-
-      const success = granted === PermissionsAndroid.RESULTS.GRANTED;
-      setPermissionStatus(prev => ({ 
-        ...prev, 
-        storage: success ? 'granted' : 'denied' 
-      }));
-      
-      return success;
-    } catch (error) {
-      console.error('Error requesting storage permission:', error);
-      return false;
-    }
-  }, []);
-
-  const requestCameraPermission = useCallback(async (): Promise<boolean> => {
-    if (Platform.OS === 'android') {
+  const requestStoragePermission = async () => {
+    if (Platform.OS === 'web') {
       try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.CAMERA,
-          {
-            title: 'Camera Permission',
-            message: 'This app needs access to camera.',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          }
-        );
-
-        const success = granted === PermissionsAndroid.RESULTS.GRANTED;
-        setPermissionStatus(prev => ({ 
-          ...prev, 
-          camera: success ? 'granted' : 'denied' 
-        }));
-        
-        return success;
-      } catch (error) {
-        console.error('Error requesting camera permission:', error);
-        return false;
+        const result = await (navigator as any).permissions.query({ name: 'persistent-storage' });
+        setPermissionStatus(prev => ({ ...prev, storage: result.state as PermissionStatus }));
+      } catch {
+        setPermissionStatus(prev => ({ ...prev, storage: 'unavailable' }));
       }
     } else {
-      // For iOS, permissions are handled by the system when camera is accessed
-      setPermissionStatus(prev => ({ ...prev, camera: 'granted' }));
-      return true;
-    }
-  }, []);
-
-  const requestMicrophonePermission = useCallback(async (): Promise<boolean> => {
-    if (Platform.OS === 'android') {
       try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
-          {
-            title: 'Microphone Permission',
-            message: 'This app needs access to microphone for audio analysis.',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          }
-        );
+        const result = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+        setPermissionStatus(prev => ({ ...prev, storage: result.granted ? 'granted' : 'denied' }));
+      } catch {
+        setPermissionStatus(prev => ({ ...prev, storage: 'unavailable' }));
+      }
+    }
+  };
 
-        const success = granted === PermissionsAndroid.RESULTS.GRANTED;
-        setPermissionStatus(prev => ({ 
-          ...prev, 
-          microphone: success ? 'granted' : 'denied' 
-        }));
-        
-        return success;
-      } catch (error) {
-        console.error('Error requesting microphone permission:', error);
-        return false;
+  const requestMicrophonePermission = async () => {
+    if (Platform.OS === 'web') {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(track => track.stop());
+        setPermissionStatus(prev => ({ ...prev, microphone: 'granted' }));
+      } catch {
+        setPermissionStatus(prev => ({ ...prev, microphone: 'denied' }));
       }
     } else {
-      // For iOS, permissions are handled by the system when microphone is accessed
-      setPermissionStatus(prev => ({ ...prev, microphone: 'granted' }));
-      return true;
+      try {
+        const { status } = await Audio.requestPermissionsAsync();
+        setPermissionStatus(prev => ({ ...prev, microphone: status as PermissionStatus }));
+      } catch {
+        setPermissionStatus(prev => ({ ...prev, microphone: 'unavailable' }));
+      }
     }
-  }, []);
+  };
 
   const requestAllPermissions = useCallback(async () => {
-    await requestNotificationPermission();
-    await requestSMSPermission();
-    await requestStoragePermission();
-    await requestCameraPermission();
-    await requestMicrophonePermission();
-  }, [
-    requestNotificationPermission,
-    requestSMSPermission,
-    requestStoragePermission,
-    requestCameraPermission,
-    requestMicrophonePermission,
-  ]);
+    await Promise.all([
+      requestClipboardPermission(),
+      requestSMSPermission(),
+      requestStoragePermission(),
+      requestMicrophonePermission(),
+    ]);
+  }, []);
+
+  useEffect(() => {
+    checkAllPermissions();
+  }, [checkAllPermissions]);
 
   return {
     permissionStatus,
+    requestClipboardPermission,
     requestSMSPermission,
-    requestNotificationPermission,
     requestStoragePermission,
-    requestCameraPermission,
     requestMicrophonePermission,
     requestAllPermissions,
-    checkAllPermissions,
   };
 }

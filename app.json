@@ -11,6 +11,18 @@
     "ios": {
       "supportsTablet": true
     },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "package": "com.yourcompany.boltexpostarter",
+      "permissions": [
+        "READ_SMS",
+        "RECEIVE_SMS",
+        "audioRecording"
+      ]
+    },
     "web": {
       "bundler": "metro",
       "output": "single",
