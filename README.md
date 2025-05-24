@@ -223,6 +223,37 @@ Access the app at `http://localhost:8501`.
   1. Enter sender and message content in the "Message Scanner" screen
   2. Tap "Scan Message" to analyze. Results appear in the FlatList
 
+#### Secure Browsing:
+- **Automatic Detection of Malicious URLs**:
+  1. Enter any URL in the browser address bar (e.g., `example.com`)
+  2. The app automatically checks for:
+     - Phishing attempts
+     - Malware distribution sites
+     - Social engineering scams
+     - Suspicious URL patterns
+  3. Dangerous sites are blocked with a warning alert
+  4. Suspicious sites show an orange warning with details
+
+- **Safe Search Navigation**:
+  1. Visit a search engine like `google.com`
+  2. Enter any search query in the Google search bar
+  3. Click on any search result link
+  4. Each clicked URL is intercepted and analyzed before loading
+  5. Malicious results are blocked with protection details
+
+- **Real-time Protection Features**:
+  - All page navigations are scanned
+  - Embedded links are checked before loading
+  - Redirect chains are fully analyzed
+  - Whitelisted domains (like google.com) bypass deep scanning for performance
+
+- **Security Details**:
+  - Tap the security indicator to view:
+    - Threat type classification
+    - Detection confidence level
+    - Specific malicious patterns found
+    - Protection recommendations
+
 ### Streamlit App
 
 #### Train a Model:
